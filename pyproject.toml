@@ -1,0 +1,194 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "evidence-ai"
+version = "0.1.0"
+description = "AI-powered clinical evidence synthesis for FDA submissions"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [{ name = "EvidenceAI Contributors" }]
+keywords = [
+    "clinical evidence synthesis",
+    "systematic literature review",
+    "FDA submission",
+    "PICO extraction",
+    "evidence triangulation",
+    "biomedical NLP",
+    "drug development",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Healthcare Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+
+dependencies = [
+    # Web framework
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "python-multipart>=0.0.9",
+
+    # Settings & validation
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+
+    # Database
+    "sqlalchemy[asyncio]>=2.0.28",
+    "asyncpg>=0.29.0",
+    "alembic>=1.13.0",
+
+    # HTTP client
+    "httpx>=0.27.0",
+    "tenacity>=8.2.0",
+
+    # Task queue
+    "celery[redis]>=5.3.6",
+    "redis>=5.0.0",
+
+    # LLM clients
+    "openai>=1.14.0",
+    "anthropic>=0.20.0",
+    "tiktoken>=0.6.0",
+
+    # ML / NLP
+    "transformers>=4.38.0",
+    "torch>=2.2.0",
+    "numpy>=1.26.0",
+    "scipy>=1.12.0",
+    "scikit-learn>=1.4.0",
+    "pandas>=2.2.0",
+
+    # XML / text processing
+    "lxml>=5.1.0",
+    "beautifulsoup4>=4.12.0",
+    "biopython>=1.83",
+
+    # Document generation
+    "jinja2>=3.1.0",
+    "markdown>=3.5.0",
+    "reportlab>=4.1.0",
+    "python-docx>=1.1.0",
+
+    # Authentication
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+
+    # Utilities
+    "click>=8.1.0",
+    "rich>=13.7.0",
+    "python-dateutil>=2.9.0",
+    "pytz>=2024.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "httpx>=0.27.0",  # for TestClient
+    "respx>=0.21.0",  # for mocking httpx
+
+    # Linting & formatting
+    "ruff>=0.3.0",
+    "mypy>=1.9.0",
+
+    # Type stubs
+    "types-redis>=4.6.0",
+    "types-python-dateutil>=2.9.0",
+    "types-beautifulsoup4>=4.12.0",
+
+    # Dev tools
+    "ipython>=8.21.0",
+    "ipdb>=0.13.13",
+]
+
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.24.0",
+]
+
+[project.scripts]
+evidence-ai = "evidence_ai.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/your-org/evidence-ai"
+Documentation = "https://docs.evidenceai.com"
+Repository = "https://github.com/your-org/evidence-ai"
+Issues = "https://github.com/your-org/evidence-ai/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/evidence_ai"]
+
+# ── Ruff ──────────────────────────────────────────────────────────────────────
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "ANN", # flake8-annotations
+    "N",   # pep8-naming
+]
+ignore = [
+    "ANN101",  # self annotation not needed
+    "ANN102",  # cls annotation not needed
+    "B008",    # do not perform function calls in default args (FastAPI Depends)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["evidence_ai"]
+
+# ── MyPy ──────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["transformers.*", "torch.*", "scipy.*", "sklearn.*", "biopython.*"]
+ignore_missing_imports = true
+
+# ── Pytest ────────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "-ra",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks integration tests that require live services",
+    "llm: marks tests that make real LLM API calls",
+]
+
+# ── Coverage ──────────────────────────────────────────────────────────────────
+[tool.coverage.run]
+source = ["src/evidence_ai"]
+omit = ["*/tests/*", "*/migrations/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 70
