@@ -1,5 +1,8 @@
 .PHONY: help dev test lint format type-check docker-up docker-down db-migrate db-reset clean install
 
+# Directory containing this Makefile (repo root). Ensures alembic finds alembic.ini / alembic/.
+ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
 PYTHON := python
 PYTEST := pytest
 RUFF := ruff
@@ -94,19 +97,19 @@ docker-logs:
 
 # ── Database ──────────────────────────────────────────────────────────────────
 db-migrate:
-	alembic upgrade head
+	cd "$(ROOT)" && alembic upgrade head
 
 db-downgrade:
-	alembic downgrade -1
+	cd "$(ROOT)" && alembic downgrade -1
 
 db-revision:
-	alembic revision --autogenerate -m "$(MSG)"
+	cd "$(ROOT)" && alembic revision --autogenerate -m "$(MSG)"
 
 db-reset:
 	@echo "WARNING: This will destroy all data. Press Ctrl+C to abort."
 	@sleep 3
-	alembic downgrade base
-	alembic upgrade head
+	cd "$(ROOT)" && alembic downgrade base
+	cd "$(ROOT)" && alembic upgrade head
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 clean:

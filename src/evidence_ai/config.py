@@ -18,7 +18,7 @@ import json
 from functools import lru_cache
 from typing import Any, Literal
 
-from pydantic import AliasChoices, Field, computed_field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -64,21 +64,6 @@ class Settings(BaseSettings):
             elif v is not None:
                 data["allowed_origins_raw"] = str(v)
         return data
-
-    @computed_field
-    @property
-    def allowed_origins(self) -> list[str]:
-        """CORS origins: comma-separated and/or JSON array in ``ALLOWED_ORIGINS``."""
-        raw = (self.allowed_origins_raw or "").strip()
-        if not raw:
-            return ["http://localhost:3000", "http://localhost:8000"]
-        if raw.startswith("["):
-            parsed = json.loads(raw)
-            if not isinstance(parsed, list):
-                msg = "ALLOWED_ORIGINS JSON must be an array of strings"
-                raise ValueError(msg)
-            return [str(x).strip() for x in parsed if str(x).strip()]
-        return [part.strip() for part in raw.split(",") if part.strip()]
 
     # ── Database ──────────────────────────────────────────────────────────────
     database_url: str = Field(
@@ -149,6 +134,25 @@ class Settings(BaseSettings):
     require_human_review: bool = False
 
     # ── Computed properties ───────────────────────────────────────────────────
+    @property
+    def allowed_origins(self) -> list[str]:
+        """CORS origins from ``ALLOWED_ORIGINS``: comma-separated and/or JSON array.
+
+        Must be a normal ``@property``, not ``computed_field``: otherwise
+        pydantic-settings binds ``ALLOWED_ORIGINS`` to this name and applies
+        JSON decoding for ``list[str]``, which breaks comma-separated values.
+        """
+        raw = (self.allowed_origins_raw or "").strip()
+        if not raw:
+            return ["http://localhost:3000", "http://localhost:8000"]
+        if raw.startswith("["):
+            parsed = json.loads(raw)
+            if not isinstance(parsed, list):
+                msg = "ALLOWED_ORIGINS JSON must be an array of strings"
+                raise ValueError(msg)
+            return [str(x).strip() for x in parsed if str(x).strip()]
+        return [part.strip() for part in raw.split(",") if part.strip()]
+
     @property
     def is_production(self) -> bool:
         """Return True if running in production environment."""
