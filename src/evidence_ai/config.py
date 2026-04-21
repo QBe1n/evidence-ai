@@ -14,10 +14,11 @@ Example::
 
 from __future__ import annotations
 
+import json
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -39,14 +40,45 @@ class Settings(BaseSettings):
     )
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     api_prefix: str = "/api/v1"
-    allowed_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
 
-    @field_validator("allowed_origins", mode="before")
+    # Stored as plain text so pydantic-settings does not JSON-decode ``list[str]``
+    # from ``ALLOWED_ORIGINS`` (comma-separated or JSON array).
+    allowed_origins_raw: str = Field(
+        default="http://localhost:3000,http://localhost:8000",
+        validation_alias=AliasChoices("ALLOWED_ORIGINS", "allowed_origins_raw"),
+        exclude=True,
+    )
+
+    @model_validator(mode="before")
     @classmethod
-    def parse_origins(cls, v: str | list[str]) -> list[str]:
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
-        return v
+    def _map_allowed_origins_constructor(cls, data: Any) -> Any:
+        """Allow ``Settings(allowed_origins=[...])`` in tests and callers."""
+        if not isinstance(data, dict):
+            return data
+        if "allowed_origins" in data and "allowed_origins_raw" not in data:
+            v = data.pop("allowed_origins")
+            if isinstance(v, list):
+                data["allowed_origins_raw"] = ",".join(str(x) for x in v)
+            elif isinstance(v, str):
+                data["allowed_origins_raw"] = v
+            elif v is not None:
+                data["allowed_origins_raw"] = str(v)
+        return data
+
+    @computed_field
+    @property
+    def allowed_origins(self) -> list[str]:
+        """CORS origins: comma-separated and/or JSON array in ``ALLOWED_ORIGINS``."""
+        raw = (self.allowed_origins_raw or "").strip()
+        if not raw:
+            return ["http://localhost:3000", "http://localhost:8000"]
+        if raw.startswith("["):
+            parsed = json.loads(raw)
+            if not isinstance(parsed, list):
+                msg = "ALLOWED_ORIGINS JSON must be an array of strings"
+                raise ValueError(msg)
+            return [str(x).strip() for x in parsed if str(x).strip()]
+        return [part.strip() for part in raw.split(",") if part.strip()]
 
     # ── Database ──────────────────────────────────────────────────────────────
     database_url: str = Field(
